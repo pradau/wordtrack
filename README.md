@@ -4,17 +4,18 @@ Word add-in that integrates Claude API to allow custom AI-powered edits with Tra
 
 ## Project Status
 
-**Current Phase: Phase 2 Complete**
+**Current Phase: Phase 3 Complete**
 
 - ✅ Phase 1: Basic add-in setup with task pane
 - ✅ Phase 2: Text extraction and insertion with Track Changes
-- ⏳ Phase 3: Claude API integration (next)
-- ⏳ Phase 4: Track Changes implementation refinement
-- ⏳ Phase 5: UI polish & error handling
+- ✅ Phase 3: Claude API integration
+- ⏳ Phase 4: Track Changes implementation refinement (optional)
+- ⏳ Phase 5: UI polish & error handling (optional)
 
 ## Git History
 
-- `phase-2-complete` tag: Current state - text extraction and insertion working
+- `phase-3-complete` tag: Current state - Claude API integration working
+- `phase-2-complete` tag: Text extraction and insertion working
 - Initial commit: Complete Phase 2 implementation
 
 ## Rolling Back
@@ -34,12 +35,15 @@ git diff phase-2-complete HEAD
 ### Setup
 1. Install dependencies: `npm install`
 2. Build: `npm run build:dev`
-3. Start dev server: `npm run dev-server` or `npx office-addin-debugging start manifest.xml`
+3. Start proxy server: `npm run proxy` (in one terminal)
+4. Start dev server: `npx office-addin-debugging start manifest.xml` (in another terminal)
 
 ### Requirements
 - Node.js v16+
 - Microsoft Word for Mac
+- Anthropic Claude API key with credits
 - Track Changes must be manually enabled in Word before using the add-in
+- Proxy server must be running for Claude API calls to work
 
 ## Project Structure
 
