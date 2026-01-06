@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WordTrack</title>
+    
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+</head>
+<body>
+    <div id="content-header">
+        <div class="ms-Grid ms-bgColor-neutralPrimary">
+            <div class="ms-Grid-row">
+                <div class="ms-Grid-col ms-u-sm12 ms-u-md12 ms-u-lg12">
+                    <h1 class="ms-font-xl ms-fontColor-white">WordTrack</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="content-main">
+        <div class="ms-Grid">
+            <div class="ms-Grid-row">
+                <div class="ms-Grid-col ms-u-sm12 ms-u-md12 ms-u-lg12">
+                    <p>Select text in your Word document, then click the button below to extract it.</p>
+                    <div class="ms-Button ms-Button--hero" id="get-selected-text-button" style="margin-top: 15px; margin-bottom: 10px;">
+                        <span class="ms-Button-label">Get Selected Text</span>
+                    </div>
+                    <div id="selected-text-container" style="display: none;">
+                        <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 16px; font-weight: 600;">Selected Text:</h3>
+                        <div id="selected-text-display" style="padding: 15px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; word-wrap: break-word; max-height: 300px; overflow-y: auto; font-size: 13px; line-height: 1.5;"></div>
+                        <div class="ms-Button ms-Button--hero" id="capitalize-button" style="margin-top: 15px; margin-bottom: 15px;">
+                            <span class="ms-Button-label">Capitalize All Words & Insert</span>
+                        </div>
+                    </div>
+                    <div id="error-message" style="display: none;"></div>
+                    <div id="success-message" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
