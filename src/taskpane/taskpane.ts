@@ -1,12 +1,20 @@
 import './taskpane.css';
 
 let currentSelectedText: string = '';
+let currentClaudeResponse: string = '';
+
+const API_KEY_STORAGE_KEY = 'wordtrack_claude_api_key';
 
 function initializeTaskPane(): void {
   console.log('Initializing task pane...');
   
+  loadApiKey();
+  
   const getSelectedTextButton = document.getElementById('get-selected-text-button');
   const capitalizeButton = document.getElementById('capitalize-button');
+  const saveApiKeyButton = document.getElementById('save-api-key-button');
+  const sendToClaudeButton = document.getElementById('send-to-claude-button');
+  const insertClaudeResponseButton = document.getElementById('insert-claude-response-button');
   
   if (getSelectedTextButton) {
     getSelectedTextButton.addEventListener('click', handleGetSelectedText);
@@ -19,6 +27,78 @@ function initializeTaskPane(): void {
   if (capitalizeButton) {
     capitalizeButton.addEventListener('click', handleCapitalizeAndInsert);
     console.log('Capitalize button found and event listener added');
+  }
+  
+  if (saveApiKeyButton) {
+    saveApiKeyButton.addEventListener('click', handleSaveApiKey);
+  }
+  
+  if (sendToClaudeButton) {
+    sendToClaudeButton.addEventListener('click', handleSendToClaude);
+  }
+  
+  if (insertClaudeResponseButton) {
+    insertClaudeResponseButton.addEventListener('click', handleInsertClaudeResponse);
+  }
+}
+
+function loadApiKey(): void {
+  try {
+    const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (savedKey) {
+      const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+      if (apiKeyInput) {
+        apiKeyInput.value = savedKey;
+        updateApiKeyStatus('API key loaded');
+      }
+    }
+  } catch (error) {
+    console.error('Error loading API key:', error);
+  }
+}
+
+function handleSaveApiKey(): void {
+  const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+  if (!apiKeyInput) {
+    return;
+  }
+  
+  const apiKey = apiKeyInput.value.trim();
+  
+  if (!apiKey) {
+    updateApiKeyStatus('Please enter an API key', true);
+    return;
+  }
+  
+  if (!apiKey.startsWith('sk-ant-')) {
+    updateApiKeyStatus('API key should start with sk-ant-', true);
+    return;
+  }
+  
+  try {
+    localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+    updateApiKeyStatus('API key saved');
+    console.log('API key saved to localStorage');
+  } catch (error) {
+    console.error('Error saving API key:', error);
+    updateApiKeyStatus('Error saving API key', true);
+  }
+}
+
+function updateApiKeyStatus(message: string, isError: boolean = false): void {
+  const statusElement = document.getElementById('api-key-status');
+  if (statusElement) {
+    statusElement.textContent = message;
+    statusElement.style.color = isError ? '#dc3545' : '#28a745';
+  }
+}
+
+function getApiKey(): string | null {
+  try {
+    return localStorage.getItem(API_KEY_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error getting API key:', error);
+    return null;
   }
 }
 
@@ -209,13 +289,170 @@ function showSuccess(message: string): void {
   }
 }
 
+function handleSendToClaude(): void {
+  if (!currentSelectedText) {
+    showError('Please select text first using "Get Selected Text" button.');
+    return;
+  }
+  
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showError('Please enter and save your Claude API key first.');
+    return;
+  }
+  
+  const promptSelect = document.getElementById('prompt-select') as HTMLSelectElement;
+  const customPrompt = promptSelect ? promptSelect.value.trim() : 'Make this 2x longer with verbosity.';
+  
+  if (!customPrompt) {
+    showError('Please select a prompt.');
+    return;
+  }
+  
+  console.log('Sending to Claude...');
+  
+  hideMessages();
+  showLoading(true);
+  
+  callClaudeAPI(currentSelectedText, customPrompt, apiKey)
+    .then((response) => {
+      showLoading(false);
+      currentClaudeResponse = response;
+      showClaudeResponse(response);
+    })
+    .catch((error) => {
+      showLoading(false);
+      console.error('Error calling Claude API:', error);
+      showError('Error calling Claude API: ' + error.message);
+    });
+}
+
+async function callClaudeAPI(text: string, prompt: string, apiKey: string): Promise<string> {
+  const fullPrompt = `${prompt}\n\nText to edit:\n${text}\n\nReturn only the edited text. Do not add titles, headers, explanations, or any other text before or after the edited content.`;
+  
+  const requestBody = {
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4096,
+    messages: [
+      {
+        role: 'user',
+        content: fullPrompt
+      }
+    ],
+    apiKey: apiKey
+  };
+  
+  let proxyUrl = 'https://localhost:3001/api/claude';
+  
+  try {
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody),
+      mode: 'cors'
+    }).catch(async (httpsError) => {
+      console.log('HTTPS proxy failed, trying HTTP:', httpsError);
+      proxyUrl = 'http://localhost:3001/api/claude';
+      return fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody),
+        mode: 'cors'
+      });
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error?.message || response.statusText;
+      
+      if (response.status === 401) {
+        throw new Error('Invalid API key. Please check your API key and try again.');
+      } else if (response.status === 402 || errorMessage.includes('credit balance') || errorMessage.includes('too low')) {
+        throw new Error('Insufficient credits. Please add credits to your Anthropic account at https://console.anthropic.com/');
+      } else if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      } else if (response.status === 500) {
+        throw new Error('Proxy server error. Make sure the proxy server is running (npm run proxy).');
+      } else {
+        throw new Error(`API error: ${errorMessage}`);
+      }
+    }
+    
+    const data = await response.json();
+    
+    if (data.content && data.content.length > 0 && data.content[0].text) {
+      return data.content[0].text;
+    } else {
+      throw new Error('Unexpected response format from Claude API');
+    }
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Cannot connect to proxy server. Make sure the proxy is running: npm run proxy');
+    }
+    throw error;
+  }
+}
+
+function showClaudeResponse(response: string): void {
+  const container = document.getElementById('claude-response-container');
+  const display = document.getElementById('claude-response-display');
+  
+  if (container && display) {
+    display.textContent = response;
+    container.style.display = 'block';
+    console.log('Claude response displayed, length:', response.length);
+  }
+}
+
+function handleInsertClaudeResponse(): void {
+  if (!currentClaudeResponse) {
+    showError('No Claude response available. Please send text to Claude first.');
+    return;
+  }
+  
+  console.log('Inserting Claude response...');
+  
+  hideMessages();
+  
+  Word.run((context) => {
+    const selection = context.document.getSelection();
+    const range = selection.getRange();
+    
+    range.insertText(currentClaudeResponse, Word.InsertLocation.replace);
+    
+    return context.sync().then(() => {
+      showSuccess('Claude\'s response has been inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
+      console.log('Claude response inserted successfully');
+    });
+  }).catch((error) => {
+    console.error('Error inserting Claude response:', error);
+    showError('Error inserting text: ' + error.message);
+  });
+}
+
+function showLoading(show: boolean): void {
+  const loadingIndicator = document.getElementById('loading-indicator');
+  if (loadingIndicator) {
+    loadingIndicator.style.display = show ? 'block' : 'none';
+  }
+}
+
 function hideMessages(): void {
   const container = document.getElementById('selected-text-container');
+  const claudeContainer = document.getElementById('claude-response-container');
   const errorMessage = document.getElementById('error-message');
   const successMessage = document.getElementById('success-message');
   
   if (container) {
     container.style.display = 'none';
+  }
+  
+  if (claudeContainer) {
+    claudeContainer.style.display = 'none';
   }
   
   if (errorMessage) {

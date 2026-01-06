@@ -7,6 +7,7 @@
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "dev-server": "webpack serve --mode development",
+    "proxy": "node proxy-server.js",
     "validate": "office-addin-manifest validate manifest.xml"
   },
   "keywords": [
