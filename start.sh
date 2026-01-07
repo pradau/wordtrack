@@ -37,18 +37,7 @@ if [ ! -f "$DEFAULT_DOC" ]; then
 fi
 
 cd "$SCRIPT_DIR"
-
-npx office-addin-debugging start manifest.xml &
-DEBUG_PID=$!
-
-sleep 3
-
-if [ -f "$DEFAULT_DOC" ]; then
-  echo "Opening default document: $DEFAULT_DOC"
-  open -a "Microsoft Word" "$DEFAULT_DOC" 2>/dev/null || echo "Note: Word should open automatically with the add-in"
-fi
-
-wait $DEBUG_PID
+npx office-addin-debugging start manifest.xml --document "$DEFAULT_DOC"
 
 echo "Stopping proxy server..."
 kill $PROXY_PID 2>/dev/null
