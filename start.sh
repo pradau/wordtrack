@@ -72,11 +72,12 @@ cd "$SCRIPT_DIR"
 if [ -n "$DEFAULT_DOC" ] && [ -f "$DEFAULT_DOC" ]; then
   echo "Opening Default.docx first..."
   open -a "Microsoft Word" "$DEFAULT_DOC" 2>/dev/null
-  sleep 3
+  echo "Waiting for Word to open..."
+  sleep 4
 fi
 
-echo "Starting add-in (will sideload into open Word document)..."
-npx office-addin-debugging start manifest.xml --no-sideload 2>/dev/null || npx office-addin-debugging start manifest.xml
+echo "Starting add-in (will sideload into open Word document if available)..."
+npx office-addin-debugging start manifest.xml
 
 if [ "$PROXY_RUNNING" = false ]; then
   echo "Stopping proxy server..."
