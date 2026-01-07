@@ -21,13 +21,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "Starting WordTrack from: $SCRIPT_DIR"
-echo "Starting proxy server in background..."
-npm run proxy &
-PROXY_PID=$!
-
-sleep 2
-
-echo "Starting add-in debugging..."
 
 DEFAULT_DOC="$HOME/Downloads/Default.docx"
 
@@ -36,9 +29,24 @@ if [ ! -f "$DEFAULT_DOC" ]; then
   touch "$DEFAULT_DOC"
 fi
 
+echo "Checking if proxy server is already running..."
+if lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+  echo "Proxy server already running on port 3001, skipping..."
+  PROXY_RUNNING=true
+else
+  echo "Starting proxy server in background..."
+  npm run proxy > /dev/null 2>&1 &
+  PROXY_PID=$!
+  PROXY_RUNNING=false
+  sleep 2
+fi
+
+echo "Starting add-in debugging..."
 cd "$SCRIPT_DIR"
 npx office-addin-debugging start manifest.xml --document "$DEFAULT_DOC"
 
-echo "Stopping proxy server..."
-kill $PROXY_PID 2>/dev/null
+if [ "$PROXY_RUNNING" = false ]; then
+  echo "Stopping proxy server..."
+  kill $PROXY_PID 2>/dev/null
+fi
 
