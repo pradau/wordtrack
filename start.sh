@@ -26,7 +26,16 @@ DEFAULT_DOC="$HOME/Downloads/Default.docx"
 
 if [ ! -f "$DEFAULT_DOC" ]; then
   echo "Creating default document: $DEFAULT_DOC"
-  touch "$DEFAULT_DOC"
+  echo "Creating empty Word document..."
+  osascript -e 'tell application "Microsoft Word" to make new document' 2>/dev/null || \
+  echo "Note: Please create Default.docx manually in ~/Downloads if needed"
+fi
+
+if [ ! -f "$DEFAULT_DOC" ]; then
+  echo "Warning: Default.docx not found, will use temporary document"
+  DOC_ARG=""
+else
+  DOC_ARG="--document \"$DEFAULT_DOC\""
 fi
 
 echo "Checking if proxy server is already running..."
@@ -43,7 +52,12 @@ fi
 
 echo "Starting add-in debugging..."
 cd "$SCRIPT_DIR"
-npx office-addin-debugging start manifest.xml --document "$DEFAULT_DOC"
+
+if [ -n "$DOC_ARG" ]; then
+  eval "npx office-addin-debugging start manifest.xml $DOC_ARG"
+else
+  npx office-addin-debugging start manifest.xml
+fi
 
 if [ "$PROXY_RUNNING" = false ]; then
   echo "Stopping proxy server..."
