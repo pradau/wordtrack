@@ -26,16 +26,32 @@ DEFAULT_DOC="$HOME/Downloads/Default.docx"
 
 if [ ! -f "$DEFAULT_DOC" ]; then
   echo "Creating default document: $DEFAULT_DOC"
-  echo "Creating empty Word document..."
-  osascript -e 'tell application "Microsoft Word" to make new document' 2>/dev/null || \
-  echo "Note: Please create Default.docx manually in ~/Downloads if needed"
+  if command -v osascript >/dev/null 2>&1; then
+    osascript <<EOF 2>/dev/null
+tell application "Microsoft Word"
+  set newDoc to make new document
+  set savePath to POSIX file "$DEFAULT_DOC"
+  save active document in savePath
+  close active document
+end tell
+EOF
+    if [ ! -f "$DEFAULT_DOC" ]; then
+      echo "Could not create Word document automatically. Please create Default.docx in ~/Downloads manually."
+      DEFAULT_DOC=""
+    fi
+  else
+    echo "Note: Please create Default.docx manually in ~/Downloads"
+    DEFAULT_DOC=""
+  fi
 fi
 
-if [ ! -f "$DEFAULT_DOC" ]; then
-  echo "Warning: Default.docx not found, will use temporary document"
-  DOC_ARG=""
+if [ -n "$DEFAULT_DOC" ] && [ -f "$DEFAULT_DOC" ]; then
+  DEFAULT_DOC_ABS=$(cd "$(dirname "$DEFAULT_DOC")" && pwd)/$(basename "$DEFAULT_DOC")
+  DOC_ARG="--document \"$DEFAULT_DOC_ABS\""
+  echo "Using document: $DEFAULT_DOC_ABS"
 else
-  DOC_ARG="--document \"$DEFAULT_DOC\""
+  DOC_ARG=""
+  echo "Using temporary document (Default.docx not found)"
 fi
 
 echo "Checking if proxy server is already running..."
