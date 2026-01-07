@@ -17,9 +17,10 @@
 #   - Allows restarting add-in without affecting proxy
 #   - Better for development/debugging
 
-cd /Users/pradau/Dropbox/ChildrensHospital/IT/scripts/wordtrack
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-echo "Starting WordTrack..."
+echo "Starting WordTrack from: $SCRIPT_DIR"
 echo "Starting proxy server in background..."
 npm run proxy &
 PROXY_PID=$!
@@ -27,6 +28,7 @@ PROXY_PID=$!
 sleep 2
 
 echo "Starting add-in debugging..."
+cd "$SCRIPT_DIR"
 npx office-addin-debugging start manifest.xml
 
 echo "Stopping proxy server..."
