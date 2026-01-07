@@ -69,22 +69,14 @@ fi
 echo "Starting add-in debugging..."
 cd "$SCRIPT_DIR"
 
-if [ -n "$DOC_ARG" ]; then
-  eval "npx office-addin-debugging start manifest.xml $DOC_ARG" &
-  DEBUG_PID=$!
-else
-  npx office-addin-debugging start manifest.xml &
-  DEBUG_PID=$!
-fi
-
-sleep 5
-
 if [ -n "$DEFAULT_DOC" ] && [ -f "$DEFAULT_DOC" ]; then
-  echo "Opening Default.docx..."
-  open -a "Microsoft Word" "$DEFAULT_DOC" 2>/dev/null || echo "Note: Word should already be open with the add-in"
+  echo "Opening Default.docx first..."
+  open -a "Microsoft Word" "$DEFAULT_DOC" 2>/dev/null
+  sleep 3
 fi
 
-wait $DEBUG_PID
+echo "Starting add-in (will sideload into open Word document)..."
+npx office-addin-debugging start manifest.xml --no-sideload 2>/dev/null || npx office-addin-debugging start manifest.xml
 
 if [ "$PROXY_RUNNING" = false ]; then
   echo "Stopping proxy server..."
