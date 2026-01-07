@@ -28,8 +28,27 @@ PROXY_PID=$!
 sleep 2
 
 echo "Starting add-in debugging..."
+
+DEFAULT_DOC="$HOME/Downloads/Default.docx"
+
+if [ ! -f "$DEFAULT_DOC" ]; then
+  echo "Creating default document: $DEFAULT_DOC"
+  touch "$DEFAULT_DOC"
+fi
+
 cd "$SCRIPT_DIR"
-npx office-addin-debugging start manifest.xml
+
+npx office-addin-debugging start manifest.xml &
+DEBUG_PID=$!
+
+sleep 3
+
+if [ -f "$DEFAULT_DOC" ]; then
+  echo "Opening default document: $DEFAULT_DOC"
+  open -a "Microsoft Word" "$DEFAULT_DOC" 2>/dev/null || echo "Note: Word should open automatically with the add-in"
+fi
+
+wait $DEBUG_PID
 
 echo "Stopping proxy server..."
 kill $PROXY_PID 2>/dev/null
