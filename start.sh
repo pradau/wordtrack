@@ -70,10 +70,21 @@ echo "Starting add-in debugging..."
 cd "$SCRIPT_DIR"
 
 if [ -n "$DOC_ARG" ]; then
-  eval "npx office-addin-debugging start manifest.xml $DOC_ARG"
+  eval "npx office-addin-debugging start manifest.xml $DOC_ARG" &
+  DEBUG_PID=$!
 else
-  npx office-addin-debugging start manifest.xml
+  npx office-addin-debugging start manifest.xml &
+  DEBUG_PID=$!
 fi
+
+sleep 5
+
+if [ -n "$DEFAULT_DOC" ] && [ -f "$DEFAULT_DOC" ]; then
+  echo "Opening Default.docx..."
+  open -a "Microsoft Word" "$DEFAULT_DOC" 2>/dev/null || echo "Note: Word should already be open with the add-in"
+fi
+
+wait $DEBUG_PID
 
 if [ "$PROXY_RUNNING" = false ]; then
   echo "Stopping proxy server..."
