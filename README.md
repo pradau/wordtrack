@@ -4,35 +4,29 @@ Word add-in that integrates Claude API to allow custom AI-powered edits with Tra
 
 ## Project Status
 
-**Current Phase: Phase 3 Complete**
+**Current Phase: Phase 5 in progress**
 
-- ✅ Phase 1: Basic add-in setup with task pane
-- ✅ Phase 2: Text extraction and insertion with Track Changes
-- ✅ Phase 3: Claude API integration
-- ⏳ Phase 4: Track Changes implementation refinement (optional)
-- ⏳ Phase 5: UI polish & error handling (optional)
+- Phase 3: COMPLETE - Core functionality (text extraction, Claude API, insertion with Track Changes)
+- Phase 4A: COMPLETE - User-friendly startup script with temp document hiding
+- Phase 5: IN PROGRESS - Track Changes + Core Polish (formatting preservation implemented)
 
-## Git History
-
-- `phase-3-complete` tag: Current state - Claude API integration working
-- `phase-2-complete` tag: Text extraction and insertion working
-- Initial commit: Complete Phase 2 implementation
-
-## Rolling Back
-
-To roll back to Phase 2 state:
-```bash
-git checkout phase-2-complete
-```
-
-To see what changed since Phase 2:
-```bash
-git diff phase-2-complete HEAD
-```
+For detailed development plans and current status, see [DEV_PLAN.md](DEV_PLAN.md) and [DEV_PLAN_PHASE_5.md](DEV_PLAN_PHASE_5.md).
 
 ## Development
 
-### Setup
+### Quick Start
+The easiest way to start WordTrack:
+```bash
+./start.sh
+```
+
+This script automatically:
+- Starts the proxy server
+- Starts the add-in debugging session
+- Opens Default.docx (if available)
+- Hides the temporary document window
+
+### Manual Setup (Alternative)
 1. Install dependencies: `npm install`
 2. Build: `npm run build:dev`
 3. Start proxy server: `npm run proxy` (in one terminal)
