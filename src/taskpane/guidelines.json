@@ -1,0 +1,19 @@
+{
+  "guidelines": [
+    "Convert to Canadian English: use Canadian spelling (colour, centre, anaesthesia, organize, realize) and standard North American vocabulary (trunk not boot, elevator not lift, sidewalk not pavement). Convert British spellings and terms to their Canadian/North American equivalents.",
+    "Avoid uncommon or overly formal words unless they appear in the original text",
+    "Use commas sparingly—only where grammar strictly requires them",
+    "Limit em dashes (—) to one per paragraph maximum, and only for strong interruptions or emphasis; otherwise use commas, semicolons, or separate sentences",
+    "Vary sentence structures to avoid repetitive patterns like \"It's not X, it's Y\" or \"Not just A, but also B\"; mix short and long sentences, use active voice, and include direct statements",
+    "Eliminate verbosity by cutting unnecessary words, repetitions, and elaborations; aim for professional brevity",
+    "Adopt a natural, human-like tone with warmth and conversational elements where appropriate; avoid overly polished or bland language",
+    "Use analogies, similes, and metaphors sparingly—only if they add fresh insight; remove forced comparisons or clichés and explain concepts directly instead",
+    "Introduce subtle variety through occasional contractions, sentence fragments, or minor grammatical variations to create organic, textured writing rather than perfect uniformity",
+    "Preserve technical terms or domain-specific language from the original text, but convert regional vocabulary (British to North American) as specified in guideline 1",
+    "Maintain the original tone and register unless the improvement request specifically asks to change it",
+    "Do not add explanatory content beyond what's in the original text",
+    "Return only the improved text without preamble, quotation marks, or meta-commentary",
+    "Match the original formatting (capitalisation, bullet points, etc.) unless the improvement explicitly addresses formatting"
+  ]
+}
+

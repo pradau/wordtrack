@@ -1,4 +1,5 @@
 import './taskpane.css';
+import guidelinesData from './guidelines.json';
 
 let currentSelectedText: string = '';
 let currentClaudeResponse: string = '';
@@ -328,7 +329,15 @@ function handleSendToClaude(): void {
 }
 
 async function callClaudeAPI(text: string, prompt: string, apiKey: string): Promise<string> {
-  const fullPrompt = `${prompt}\n\nText to edit:\n${text}\n\nReturn only the edited text. Do not add titles, headers, explanations, or any other text before or after the edited content.`;
+  // Build the guidelines section with numbered list
+  const guidelinesList = guidelinesData.guidelines
+    .map((guideline: string, index: number) => `\t${index + 1}\t${guideline}`)
+    .join('\n');
+  
+  // Construct the full prompt with guidelines and override instruction
+  const guidelinesSection = `General guidelines for text improvement:\n${guidelinesList}\nHowever, disregard any of these guidelines when they conflict with the following main instruction: ${prompt}`;
+  
+  const fullPrompt = `${guidelinesSection}\n\nText to edit:\n${text}\n\nReturn only the edited text. Do not add titles, headers, explanations, or any other text before or after the edited content.`;
   
   const requestBody = {
     model: 'claude-haiku-4-5-20251001',
