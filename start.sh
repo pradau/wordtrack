@@ -249,17 +249,39 @@ sleep 9
 monitor_temp_window &
 MONITOR_PID=$!
 
-# Wait for add-in process (Ctrl+C will stop it)
-wait $ADDIN_PID
-ADDIN_EXIT=$?
+# Set up signal handler to clean up on Ctrl+C
+cleanup() {
+  echo ""
+  echo "Shutting down..."
+  kill $MONITOR_PID 2>/dev/null
+  if [ "$PROXY_RUNNING" = false ]; then
+    echo "Stopping proxy server..."
+    kill $PROXY_PID 2>/dev/null
+  fi
+  # Try to kill the add-in process if still running
+  kill $ADDIN_PID 2>/dev/null
+  exit 0
+}
 
-# Stop the monitoring process
-kill $MONITOR_PID 2>/dev/null
+trap cleanup SIGINT SIGTERM
 
-if [ "$PROXY_RUNNING" = false ]; then
-  echo "Stopping proxy server..."
-  kill $PROXY_PID 2>/dev/null
-fi
+# Wait for add-in process (Ctrl+C will trigger cleanup)
+# Note: office-addin-debugging may exit after starting dev server, so we keep waiting
+# The dev server runs separately, and we want to keep the proxy running
+wait $ADDIN_PID 2>/dev/null || true
 
-exit $ADDIN_EXIT
+# If we get here, the add-in command exited, but dev server may still be running
+# Don't stop the proxy - let it keep running for the dev server
+# User can press Ctrl+C to stop everything via the signal handler
+echo ""
+echo "Add-in debugging command completed. Dev server may still be running."
+echo "Proxy server is still running on port 3001."
+echo "Press Ctrl+C to stop the proxy server and exit."
+echo ""
+
+# Keep script alive so proxy keeps running
+# Wait for Ctrl+C (handled by trap)
+while true; do
+  sleep 1
+done
 

@@ -3,6 +3,17 @@ import guidelinesData from './guidelines.json';
 
 let currentSelectedText: string = '';
 let currentClaudeResponse: string = '';
+// Store formatting properties as plain values (not Office.js objects)
+interface StoredFormatting {
+  name?: string;
+  size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: Word.UnderlineType | string;
+  color?: string;
+  highlightColor?: Word.UnderlineType | string;
+}
+let storedFormatting: StoredFormatting | null = null;
 
 const API_KEY_STORAGE_KEY = 'wordtrack_claude_api_key';
 
@@ -112,7 +123,9 @@ function handleGetSelectedText(): void {
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
+    // Load text and formatting properties
     range.load('text');
+    range.font.load('name, size, bold, italic, underline, color, highlightColor');
     const ooxmlResult = range.getOoxml();
     
     return context.sync().then(() => {
@@ -124,6 +137,223 @@ function handleGetSelectedText(): void {
       }
       
       currentSelectedText = selectedText;
+      
+      // Use majority vote approach: analyze OOXML to count formatting from each run
+      const formattingCounts: {
+        name: Map<string, number>;
+        size: Map<number, number>;
+        bold: { true: number; false: number };
+        italic: { true: number; false: number };
+        underline: Map<string, number>;
+        color: Map<string, number>;
+        highlightColor: Map<string, number>;
+      } = {
+        name: new Map(),
+        size: new Map(),
+        bold: { true: 0, false: 0 },
+        italic: { true: 0, false: 0 },
+        underline: new Map(),
+        color: new Map(),
+        highlightColor: new Map()
+      };
+      
+      let totalWords = 0;
+      
+      // Parse OOXML to count formatting from each run, weighted by word count
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(ooxmlResult.value, 'text/xml');
+        const paragraphs = xmlDoc.getElementsByTagName('w:p');
+        
+        for (let i = 0; i < paragraphs.length; i++) {
+          const para = paragraphs[i];
+          const runs = para.getElementsByTagName('w:r');
+          
+          for (let j = 0; j < runs.length; j++) {
+            const run = runs[j];
+            const textElements = run.getElementsByTagName('w:t');
+            let runText = '';
+            
+            for (let k = 0; k < textElements.length; k++) {
+              runText += textElements[k].textContent || '';
+            }
+            
+            // Only count runs with actual text
+            if (runText.trim().length > 0) {
+              // Count words in this run (split by whitespace, filter empty strings)
+              const words = runText.trim().split(/\s+/).filter(word => word.length > 0);
+              const wordCount = words.length;
+              
+              if (wordCount > 0) {
+                totalWords += wordCount;
+                
+                // Get run properties (rPr = run properties)
+                const rPr = run.getElementsByTagName('w:rPr')[0];
+                
+                if (rPr) {
+                  // Count font name (weighted by word count)
+                  const fontName = rPr.getElementsByTagName('w:rFonts')[0];
+                  if (fontName) {
+                    const name = fontName.getAttribute('w:ascii') || fontName.getAttribute('w:hAnsi') || '';
+                    if (name) {
+                      const count = formattingCounts.name.get(name) || 0;
+                      formattingCounts.name.set(name, count + wordCount);
+                    }
+                  }
+                  
+                  // Count font size (weighted by word count)
+                  const fontSize = rPr.getElementsByTagName('w:sz')[0];
+                  if (fontSize) {
+                    const sizeAttr = fontSize.getAttribute('w:val');
+                    if (sizeAttr) {
+                      const size = parseInt(sizeAttr) / 2; // Office.js uses half-points
+                      const count = formattingCounts.size.get(size) || 0;
+                      formattingCounts.size.set(size, count + wordCount);
+                    }
+                  }
+                  
+                  // Count bold (weighted by word count)
+                  const isBold = rPr.getElementsByTagName('w:b').length > 0;
+                  if (isBold) {
+                    formattingCounts.bold.true += wordCount;
+                  } else {
+                    formattingCounts.bold.false += wordCount;
+                  }
+                  
+                  // Count italic (weighted by word count)
+                  const isItalic = rPr.getElementsByTagName('w:i').length > 0;
+                  if (isItalic) {
+                    formattingCounts.italic.true += wordCount;
+                  } else {
+                    formattingCounts.italic.false += wordCount;
+                  }
+                  
+                  // Count underline (weighted by word count)
+                  const underline = rPr.getElementsByTagName('w:u')[0];
+                  if (underline) {
+                    const underlineVal = underline.getAttribute('w:val') || 'single';
+                    const count = formattingCounts.underline.get(underlineVal) || 0;
+                    formattingCounts.underline.set(underlineVal, count + wordCount);
+                  } else {
+                    const count = formattingCounts.underline.get('none') || 0;
+                    formattingCounts.underline.set('none', count + wordCount);
+                  }
+                  
+                  // Count color (weighted by word count)
+                  const color = rPr.getElementsByTagName('w:color')[0];
+                  if (color) {
+                    const colorVal = color.getAttribute('w:val') || '';
+                    if (colorVal) {
+                      const count = formattingCounts.color.get(colorVal) || 0;
+                      formattingCounts.color.set(colorVal, count + wordCount);
+                    }
+                  }
+                  
+                  // Count highlight color (weighted by word count)
+                  const highlight = rPr.getElementsByTagName('w:highlight')[0];
+                  if (highlight) {
+                    const highlightVal = highlight.getAttribute('w:val') || '';
+                    if (highlightVal) {
+                      const count = formattingCounts.highlightColor.get(highlightVal) || 0;
+                      formattingCounts.highlightColor.set(highlightVal, count + wordCount);
+                    }
+                  }
+                } else {
+                  // No run properties - count as default formatting (weighted by word count)
+                  formattingCounts.bold.false += wordCount;
+                  formattingCounts.italic.false += wordCount;
+                  const count = formattingCounts.underline.get('none') || 0;
+                  formattingCounts.underline.set('none', count + wordCount);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing OOXML for majority vote:', error);
+        // Fall back to range-level formatting if OOXML parsing fails
+        totalWords = 0;
+      }
+      
+      // Determine majority formatting (based on word count, not run count)
+      storedFormatting = {};
+      
+      if (totalWords > 0) {
+        // Font name - most common (by word count)
+        let maxCount = 0;
+        let majorityName: string | undefined;
+        formattingCounts.name.forEach((count, name) => {
+          if (count > maxCount) {
+            maxCount = count;
+            majorityName = name;
+          }
+        });
+        if (majorityName && maxCount > totalWords / 2) {
+          storedFormatting.name = majorityName;
+        }
+        
+        // Font size - most common (by word count)
+        maxCount = 0;
+        let majoritySize: number | undefined;
+        formattingCounts.size.forEach((count, size) => {
+          if (count > maxCount) {
+            maxCount = count;
+            majoritySize = size;
+          }
+        });
+        if (majoritySize !== undefined && maxCount > totalWords / 2) {
+          storedFormatting.size = majoritySize;
+        }
+        
+        // Bold - majority vote (by word count)
+        if (formattingCounts.bold.true + formattingCounts.bold.false > 0) {
+          storedFormatting.bold = formattingCounts.bold.true > formattingCounts.bold.false;
+        }
+        
+        // Italic - majority vote (by word count)
+        if (formattingCounts.italic.true + formattingCounts.italic.false > 0) {
+          storedFormatting.italic = formattingCounts.italic.true > formattingCounts.italic.false;
+        }
+        
+        // Underline - most common (by word count, if majority)
+        maxCount = 0;
+        let majorityUnderline: string | undefined;
+        formattingCounts.underline.forEach((count, underline) => {
+          if (count > maxCount) {
+            maxCount = count;
+            majorityUnderline = underline;
+          }
+        });
+        if (majorityUnderline && maxCount > totalWords / 2) {
+          storedFormatting.underline = majorityUnderline as Word.UnderlineType;
+        }
+        
+        // Color - most common (by word count, if majority)
+        maxCount = 0;
+        let majorityColor: string | undefined;
+        formattingCounts.color.forEach((count, color) => {
+          if (count > maxCount) {
+            maxCount = count;
+            majorityColor = color;
+          }
+        });
+        if (majorityColor && maxCount > totalWords / 2) {
+          storedFormatting.color = majorityColor;
+        }
+        
+        // Highlight color - most common (by word count, if majority)
+        maxCount = 0;
+        let majorityHighlight: string | undefined;
+        formattingCounts.highlightColor.forEach((count, highlight) => {
+          if (count > maxCount) {
+            maxCount = count;
+            majorityHighlight = highlight;
+          }
+        });
+        if (majorityHighlight && maxCount > totalWords / 2) {
+          storedFormatting.highlightColor = majorityHighlight as Word.UnderlineType;
+        }
+      }
       
       const ooxml = ooxmlResult.value;
       const htmlContent = convertOoxmlToHtml(ooxml, selectedText);
@@ -431,11 +661,44 @@ function handleInsertClaudeResponse(): void {
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
+    // Insert the text
     range.insertText(currentClaudeResponse, Word.InsertLocation.replace);
     
+    // Apply stored formatting if available
+    if (storedFormatting && Object.keys(storedFormatting).length > 0) {
+      // Apply formatting to the newly inserted text
+      // Only apply properties that are defined and not null
+      if (storedFormatting.name !== undefined && storedFormatting.name !== null) {
+        range.font.name = storedFormatting.name;
+      }
+      if (storedFormatting.size !== undefined && storedFormatting.size !== null) {
+        range.font.size = storedFormatting.size;
+      }
+      if (storedFormatting.bold !== undefined && storedFormatting.bold !== null) {
+        range.font.bold = storedFormatting.bold;
+      }
+      if (storedFormatting.italic !== undefined && storedFormatting.italic !== null) {
+        range.font.italic = storedFormatting.italic;
+      }
+      if (storedFormatting.underline !== undefined && storedFormatting.underline !== null) {
+        range.font.underline = storedFormatting.underline as Word.UnderlineType;
+      }
+      if (storedFormatting.color !== undefined && storedFormatting.color !== null) {
+        range.font.color = storedFormatting.color;
+      }
+      if (storedFormatting.highlightColor !== undefined && storedFormatting.highlightColor !== null) {
+        range.font.highlightColor = storedFormatting.highlightColor as Word.UnderlineType;
+      }
+    }
+    
     return context.sync().then(() => {
-      showSuccess('Claude\'s response has been inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
-      console.log('Claude response inserted successfully');
+      if (storedFormatting) {
+        showSuccess('Claude\'s response has been inserted with formatting preserved. Make sure Track Changes is enabled in Word to see the changes tracked.');
+        console.log('Claude response inserted successfully with formatting');
+      } else {
+        showSuccess('Claude\'s response has been inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
+        console.log('Claude response inserted successfully');
+      }
     });
   }).catch((error) => {
     console.error('Error inserting Claude response:', error);
