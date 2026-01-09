@@ -17,14 +17,19 @@ For detailed development plans and current status, see [DEV_PLAN.md](DEV_PLAN.md
 ### Quick Start
 The easiest way to start WordTrack:
 ```bash
-./start.sh
+./start.py
+```
+
+Or:
+```bash
+python3 start.py
 ```
 
 This script automatically:
 - Starts the proxy server
 - Starts the add-in debugging session
-- Opens Default.docx (if available)
-- Hides the temporary document window
+- Opens Word with the add-in loaded
+- Monitors Word and saves your work to `~/Downloads/Default.docx` when you close Word
 
 ### Manual Setup (Alternative)
 1. Install dependencies: `npm install`
