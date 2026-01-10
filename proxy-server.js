@@ -37,6 +37,21 @@ const requestHandler = (req, res) => {
           }
         };
         
+        // Build request body - support system messages if present
+        const apiRequestBody = {
+          model: requestData.model,
+          max_tokens: requestData.max_tokens,
+          messages: requestData.messages
+        };
+        
+        // Extract system message if first message has role 'system'
+        // Claude API expects system messages in a separate 'system' field
+        if (requestData.messages && requestData.messages.length > 0 && requestData.messages[0].role === 'system') {
+          apiRequestBody.system = requestData.messages[0].content;
+          // Remove system message from messages array (Claude API expects it separately)
+          apiRequestBody.messages = requestData.messages.slice(1);
+        }
+        
         const apiReq = https.request(options, (apiRes) => {
           let apiBody = '';
           
@@ -63,13 +78,7 @@ const requestHandler = (req, res) => {
           res.end(JSON.stringify({ error: error.message }));
         });
         
-        const requestBody = {
-          model: requestData.model,
-          max_tokens: requestData.max_tokens,
-          messages: requestData.messages
-        };
-        
-        apiReq.write(JSON.stringify(requestBody));
+        apiReq.write(JSON.stringify(apiRequestBody));
         apiReq.end();
       } catch (error) {
         res.writeHead(400, {

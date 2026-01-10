@@ -559,25 +559,31 @@ function handleSendToClaude(): void {
 }
 
 async function callClaudeAPI(text: string, prompt: string, apiKey: string): Promise<string> {
-  // Build the guidelines section with numbered list
-  const guidelinesList = guidelinesData.guidelines
-    .map((guideline: string, index: number) => `\t${index + 1}\t${guideline}`)
-    .join('\n');
+  // Condense guidelines into a compact system message
+  const guidelinesText = guidelinesData.guidelines.join(' ');
   
-  // Construct the full prompt with guidelines and override instruction
-  const guidelinesSection = `General guidelines for text improvement:\n${guidelinesList}\nHowever, disregard any of these guidelines when they conflict with the following main instruction: ${prompt}`;
+  // Build messages array with system message for guidelines (more token-efficient)
+  // System messages are typically cheaper and don't need to be repeated
+  const messages: Array<{role: string, content: string}> = [];
   
-  const fullPrompt = `${guidelinesSection}\n\nText to edit:\n${text}\n\nReturn only the edited text. Do not add titles, headers, explanations, or any other text before or after the edited content.`;
+  // Add system message with condensed guidelines
+  messages.push({
+    role: 'system',
+    content: `Text editing guidelines: ${guidelinesText}. Apply these unless the user's instruction conflicts.`
+  });
+  
+  // User message is just the instruction and text (much shorter)
+  const userPrompt = `${prompt}\n\nText:\n${text}\n\nReturn only the edited text.`;
+  
+  messages.push({
+    role: 'user',
+    content: userPrompt
+  });
   
   const requestBody = {
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 4096,
-    messages: [
-      {
-        role: 'user',
-        content: fullPrompt
-      }
-    ],
+    messages: messages,
     apiKey: apiKey
   };
   
