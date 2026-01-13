@@ -377,20 +377,62 @@ function handleCapitalizeAndInsert(): void {
   
   const capitalizedText = capitalizeWords(currentSelectedText);
   
-  Word.run((context) => {
+  Word.run(async (context) => {
+    // Enable Track Changes before inserting
+    const trackChangesEnabled = await ensureTrackChangesEnabled(context);
+    
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
     range.insertText(capitalizedText, Word.InsertLocation.replace);
     
     return context.sync().then(() => {
-      showSuccess('Text has been capitalized and inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
+      if (trackChangesEnabled) {
+        showSuccess('Text has been capitalized and inserted. Changes are tracked.');
+      } else {
+        showSuccess('Text has been capitalized and inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
+      }
       console.log('Text replaced successfully');
     });
   }).catch((error) => {
     console.error('Error inserting text:', error);
     showError('Error inserting text: ' + error.message);
   });
+}
+
+/**
+ * Ensures Track Changes is enabled in the document.
+ * Returns true if Track Changes was enabled (or already was enabled), false if not possible.
+ */
+async function ensureTrackChangesEnabled(context: Word.RequestContext): Promise<boolean> {
+  try {
+    // Check if trackRevisions property exists (available in WordApi 1.3+)
+    if ('trackRevisions' in context.document) {
+      // Check current state
+      context.document.load('trackRevisions');
+      await context.sync();
+      
+      // If already enabled, return true
+      if (context.document.trackRevisions === true) {
+        console.log('Track Changes already enabled');
+        return true;
+      }
+      
+      // Enable Track Changes
+      context.document.trackRevisions = true;
+      await context.sync();
+      console.log('Track Changes enabled successfully');
+      return true;
+    } else {
+      // API not available (older Word version)
+      console.warn('Track Changes API not available in this Word version');
+      return false;
+    }
+  } catch (error) {
+    // Handle errors (e.g., document protected)
+    console.error('Error enabling Track Changes:', error);
+    return false;
+  }
 }
 
 function capitalizeWords(text: string): string {
@@ -663,7 +705,10 @@ function handleInsertClaudeResponse(): void {
   
   hideMessages();
   
-  Word.run((context) => {
+  Word.run(async (context) => {
+    // Enable Track Changes before inserting
+    const trackChangesEnabled = await ensureTrackChangesEnabled(context);
+    
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
@@ -699,10 +744,18 @@ function handleInsertClaudeResponse(): void {
     
     return context.sync().then(() => {
       if (storedFormatting) {
-        showSuccess('Claude\'s response has been inserted with formatting preserved. Make sure Track Changes is enabled in Word to see the changes tracked.');
+        if (trackChangesEnabled) {
+          showSuccess('Claude\'s response has been inserted with formatting preserved. Changes are tracked.');
+        } else {
+          showSuccess('Claude\'s response has been inserted with formatting preserved. Make sure Track Changes is enabled in Word to see the changes tracked.');
+        }
         console.log('Claude response inserted successfully with formatting');
       } else {
-        showSuccess('Claude\'s response has been inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
+        if (trackChangesEnabled) {
+          showSuccess('Claude\'s response has been inserted. Changes are tracked.');
+        } else {
+          showSuccess('Claude\'s response has been inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
+        }
         console.log('Claude response inserted successfully');
       }
     });
