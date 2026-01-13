@@ -75,6 +75,24 @@ class WordTrackStarter:
         except Exception:
             return False
     
+    def verify_proxy_ready(self) -> bool:
+        """
+        Verify that the proxy server is actually ready to handle requests.
+        
+        Returns:
+            True if proxy is ready, False otherwise
+        """
+        try:
+            # Try to connect to the proxy to verify it's actually accepting connections
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(1.0)
+                sock.connect(('localhost', PROXY_PORT))
+                # If we can connect, proxy is ready
+                return True
+        except Exception:
+            # If connection fails, proxy might not be fully ready yet
+            return False
+    
     def is_process_running(self, process: Optional[subprocess.Popen]) -> bool:
         """
         Check if a process is still running.
@@ -141,16 +159,21 @@ class WordTrackStarter:
                 
                 # Check if port is listening
                 if self.is_port_listening(PROXY_PORT):
-                    self.proxy_running = True
-                    print(f"Proxy server started successfully on port {PROXY_PORT}")
-                    # Show initial proxy output
-                    if self.proxy_log.exists() and self.proxy_log.stat().st_size > 0:
-                        print("Proxy server output:")
-                        print(self.proxy_log.read_text())
-                    # Clean up log file after showing output
-                    self.proxy_log.unlink()
-                    self.proxy_log = None
-                    return True
+                    # Verify proxy is actually responding (not just port open)
+                    if self.verify_proxy_ready():
+                        self.proxy_running = True
+                        print(f"Proxy server started successfully on port {PROXY_PORT}")
+                        # Show initial proxy output
+                        if self.proxy_log.exists() and self.proxy_log.stat().st_size > 0:
+                            print("Proxy server output:")
+                            print(self.proxy_log.read_text())
+                        # Clean up log file after showing output
+                        self.proxy_log.unlink()
+                        self.proxy_log = None
+                        # Add small delay to ensure proxy is fully ready
+                        print("Ensuring proxy server is fully ready...")
+                        time.sleep(1)
+                        return True
             
             # Timeout
             print(f"\nERROR: Proxy server failed to start after {MAX_PROXY_WAIT} seconds")
@@ -420,6 +443,19 @@ class WordTrackStarter:
         # Start proxy server
         if not self.start_proxy_server():
             sys.exit(1)
+        
+        # Ensure proxy is fully ready before launching Word
+        print("Verifying proxy server is ready to handle requests...")
+        if not self.verify_proxy_ready():
+            print("WARNING: Proxy server port is open but may not be fully ready.")
+            print("Waiting an additional 2 seconds for proxy to initialize...")
+            time.sleep(2)
+            if not self.verify_proxy_ready():
+                print("ERROR: Proxy server is not responding. Please check for errors.")
+                self.cleanup()
+                sys.exit(1)
+        
+        print("Proxy server is ready. Starting add-in...")
         
         # Start add-in debugging
         if not self.start_addin_debugging():

@@ -8,15 +8,25 @@
 1. ✅ Jest testing infrastructure (153 tests passing)
 2. ✅ All 11 automated Track Changes test suites created
 3. ✅ Research: Confirmed `document.trackRevisions` API exists and works
-4. ✅ Implementation: `ensureTrackChangesEnabled()` function created
-5. ✅ Integration: Function integrated into both insert operations
+4. ✅ Implementation: `ensureTrackChangesEnabled()` function created with detailed logging
+5. ✅ Integration: Function integrated into all insert operations and startup
 6. ✅ Messages: Success messages updated based on Track Changes state
+7. ✅ Test button: Added "Test Track Changes" button for debugging
+8. ✅ Proxy startup: Fixed timing issue - proxy verified ready before launching Word
+
+**⏳ IN PROGRESS (Debugging):**
+1. ⚠️ Track Changes enabling not working in actual Word testing
+   - Test button shows failure
+   - Automatic enabling on startup not working
+   - Need to check browser console for specific error
+   - Possible causes: Word version, document protection, API access, timing
 
 **⏳ REMAINING (Manual Testing Required):**
-1. ⏳ Baseline testing (verify current behavior)
-2. ⏳ Manual integration testing (5 test scenarios in Word)
-3. ⏳ Edge case testing
-4. ⏳ Documentation updates
+1. ⏳ Debug Track Changes enabling issue
+2. ⏳ Baseline testing (verify current behavior)
+3. ⏳ Manual integration testing (5 test scenarios in Word)
+4. ⏳ Edge case testing
+5. ⏳ Documentation updates
 
 ### Completed
 
@@ -52,19 +62,49 @@
 - [x] **Step 2:** Research Office.js Track Changes API ✅ **COMPLETE**
   - ✅ Confirmed: `document.trackRevisions` property exists
   - ✅ Can read and write to it
-  - ✅ Available in Word 2016+ (WordApi 1.3+)
+  - ✅ Available in Word 2021+ (WordApi 1.4+)
   - ✅ Works on both Windows and Mac
   - ✅ API Usage: `context.document.trackRevisions = true` (with `context.sync()`)
 - [x] **Step 3:** Implement programmatic Track Changes enabling ✅ **COMPLETE**
   - ✅ Created `ensureTrackChangesEnabled()` function
   - ✅ Integrated into `handleCapitalizeAndInsert()`
   - ✅ Integrated into `handleInsertClaudeResponse()`
+  - ✅ Integrated into `handleGetSelectedText()` (re-enables if turned off)
+  - ✅ Added `enableTrackChangesOnStartup()` for automatic enabling on add-in load
+  - ✅ Added "Test Track Changes" button for debugging
   - ✅ Updated success messages to reflect Track Changes state
   - ✅ Handles API not available gracefully (fallback message)
+  - ✅ Re-enables Track Changes after insertions (in case Word turns it off)
 - [ ] **Step 1:** Perform manual baseline testing (verify current behavior)
 - [ ] **Step 4:** Perform manual integration testing with Word (5 test scenarios)
 - [ ] **Step 5:** Handle edge cases in implementation
 - [ ] **Step 6:** Update documentation
+
+### Current Testing Status
+
+**Testing in Progress:**
+- ⚠️ **Issue Found:** Track Changes enabling not working as expected
+  - Test button shows failure
+  - Automatic enabling on startup not working
+  - Need to debug: Check browser console for detailed error messages
+  - Possible causes:
+    - Word version may not support WordApi 1.4
+    - Document may be protected
+    - API property may not be accessible
+    - Timing issue with Office.js initialization
+
+**Next Steps for Debugging:**
+1. Check browser console in task pane (Safari → Develop → Microsoft Word → taskpane.html)
+2. Look for error messages when clicking "Test Track Changes" button
+3. Verify Word version supports WordApi 1.4 (Word 2021+)
+4. Check if document is protected/read-only
+5. Test with a fresh document
+
+**Test Button Added:**
+- Green "Test Track Changes" button in task pane
+- Provides detailed error messages
+- Shows status in API key status area
+- Logs detailed information to console
 
 ### Automated Tests Status
 
@@ -551,12 +591,13 @@ Task 2 is complete when:
 - ✅ API exists: `context.document.trackRevisions` property
 - ✅ Can read: `context.document.load('trackRevisions')` then `context.sync()` to read
 - ✅ Can write: `context.document.trackRevisions = true` then `context.sync()` to set
-- ✅ Available in Word 2016+ (WordApi 1.3+)
+- ✅ Available in Word 2021+ (WordApi 1.4+)
 - ✅ Works on both Windows and Mac
 - ✅ Implementation: `ensureTrackChangesEnabled()` function created and integrated
 
-#### 2. Baseline Testing - Current Behavior (Step 1)
-**Action Required:** Test current behavior BEFORE implementing changes
+#### 2. Baseline Testing - Current Behavior (Step 1) ⏳ **IN PROGRESS**
+**Status:** Testing started but Track Changes enabling not working yet
+**Action Required:** Debug why Track Changes enabling is failing, then complete baseline testing
 
 **Test 1.1: Track Changes OFF → Insert Text**
 - [ ] Open Word with a test document
@@ -592,27 +633,50 @@ Task 2 is complete when:
 
 **Time Estimate:** 20-30 minutes
 
-#### 3. Implement Track Changes (Step 3) ✅ **COMPLETE**
+#### 3. Implement Track Changes (Step 3) ✅ **COMPLETE** (Testing in Progress)
 **Implementation Details:**
 - ✅ Created `ensureTrackChangesEnabled()` function in `taskpane.ts`
   - Checks if `trackRevisions` property exists
   - Reads current state
   - Enables if not already enabled
+  - Verifies state after enabling
   - Returns true if enabled, false if not possible
   - Handles errors gracefully (document protected, API not available)
+  - Enhanced with detailed logging for debugging
 - ✅ Integrated into `handleCapitalizeAndInsert()`
   - Calls `ensureTrackChangesEnabled()` before insertion
+  - Re-enables after insertion (in case Word turned it off)
   - Updates success message based on whether Track Changes was enabled
 - ✅ Integrated into `handleInsertClaudeResponse()`
   - Calls `ensureTrackChangesEnabled()` before insertion
+  - Re-enables after insertion (in case Word turned it off)
   - Updates success message based on whether Track Changes was enabled
+- ✅ Integrated into `handleGetSelectedText()`
+  - Re-enables Track Changes when user interacts with add-in
+  - Ensures Track Changes stays ON even after accepting changes
+- ✅ Added `enableTrackChangesOnStartup()` function
+  - Automatically enables Track Changes when add-in loads
+  - Runs with retry logic if Word API not ready yet
+  - Shows status message when enabled
+- ✅ Added "Test Track Changes" button
+  - Manual testing/debugging tool
+  - Shows detailed error messages
+  - Logs comprehensive debugging information
 - ✅ Success messages updated:
   - If enabled: "Changes are tracked."
   - If not enabled: "Make sure Track Changes is enabled in Word to see the changes tracked."
 - ✅ Graceful fallback: Insertion still works even if Track Changes can't be enabled
 
-#### 4. Manual Integration Testing (Step 4)
-**Action Required:** Test all scenarios after implementation
+**Current Testing Status:**
+- ⚠️ **Issue:** Track Changes enabling not working in actual Word testing
+- Test button shows failure
+- Automatic enabling on startup not working
+- **Next:** Need to check browser console for specific error messages
+- **Possible causes:** Word version, document protection, API access issue, timing
+
+#### 4. Manual Integration Testing (Step 4) ⏳ **PENDING**
+**Status:** Waiting for Track Changes enabling to work before full integration testing
+**Action Required:** Test all scenarios after Track Changes enabling is fixed
 
 **Test 4.1: Track Changes OFF → Edit → Should Enable Automatically**
 - [ ] Open document with Track Changes OFF
@@ -712,27 +776,53 @@ Task 2 is complete when:
 
 ## Testing Approach Summary
 
-### Automated Testing (Jest)
+### Automated Testing (Jest) ✅ **COMPLETE**
 - **Unit tests**: Test individual functions with mocked Office.js APIs
 - **Coverage**: API detection, helper functions, error handling, edge cases, messages, state, formatting, async behavior
 - **Total Test Categories**: 11 comprehensive test suites covering all aspects of Track Changes functionality
+- **Status**: ✅ All 153 tests passing (14 test suites)
 - **Benefits**: Fast, repeatable, can run in CI/CD, catches bugs before manual testing
-- **Status**: Infrastructure ready, ~100+ individual test cases to be written as implementation progresses
 
-### Manual Testing (Word Integration)
+### Manual Testing (Word Integration) ⏳ **IN PROGRESS**
 - **Integration tests**: Verify actual behavior in Word application
 - **Coverage**: Visual verification, UI interactions, Review tab functionality, end-to-end workflows
 - **Benefits**: Real-world validation, catches Office.js API quirks, validates user experience
-- **Status**: To be performed after implementation and automated tests pass
+- **Status**: Testing started, Track Changes enabling not working - needs debugging
+- **Current Issue**: Test button shows failure, need to check browser console for error details
 
 ### Hybrid Approach
-- Write automated tests first to guide implementation (TDD approach)
-- Use automated tests to validate logic, error handling, and state management
-- Use manual testing to verify automated test assumptions and visual behavior
-- Update automated tests based on real API behavior discovered during manual testing
-- Automated tests provide regression protection as code evolves
+- ✅ Automated tests written and passing (153 tests)
+- ⏳ Manual testing in progress - debugging Track Changes enabling issue
+- Need to identify why Track Changes API isn't working in actual Word
+- Once fixed, complete manual integration testing
 
 ### Estimated Test Coverage
-- **Automated tests**: ~70-80% of Track Changes functionality (logic, error handling, state management)
-- **Manual tests**: ~20-30% of Track Changes functionality (visual verification, Word UI integration)
-- **Combined**: Comprehensive coverage of all Track Changes scenarios
+- **Automated tests**: ✅ 100% complete - 153 tests passing
+- **Manual tests**: ⏳ In progress - Track Changes enabling needs debugging
+- **Combined**: Will provide comprehensive coverage once manual testing completes
+
+## Current Debugging Status
+
+**Issue:** Track Changes enabling not working in actual Word testing
+- Test button shows failure
+- Automatic enabling on startup not working
+- Manual enabling works (user confirmed)
+
+**Debugging Steps Taken:**
+1. ✅ Added detailed logging to `ensureTrackChangesEnabled()`
+2. ✅ Added "Test Track Changes" button with comprehensive error reporting
+3. ✅ Enhanced error handling and requirement set checking
+4. ✅ Added verification after enabling to confirm state
+5. ✅ Made requirement set check non-blocking (try anyway if check fails)
+
+**Next Steps:**
+1. Check browser console in task pane for detailed error messages
+2. Verify Word version supports WordApi 1.4 (Word 2021+)
+3. Test with a fresh, unprotected document
+4. Check if document is read-only or protected
+5. Review console output to identify specific failure point
+
+**How to Access Console:**
+- Safari → Settings → Advanced → Enable "Show Develop menu"
+- Safari → Develop → [Your Mac Name] → Microsoft Word → taskpane.html
+- Check Console tab for detailed error messages
