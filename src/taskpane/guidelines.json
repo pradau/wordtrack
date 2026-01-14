@@ -1,19 +1,19 @@
 {
   "guidelines": [
-    "Canadian English: colour, centre, anaesthesia, organize, realize. North American terms (trunk, elevator, sidewalk).",
-    "Avoid uncommon/formal words unless in original.",
+    "CA English: colour, centre, anaesthesia, organize, realize. NA terms (trunk, elevator, sidewalk).",
+    "Avoid uncommon/formal words unless original.",
     "Commas only where grammatically required.",
-    "Em dashes: max one per paragraph, for strong emphasis only.",
-    "Vary sentence structure; avoid repetitive patterns. Mix short/long, use active voice.",
-    "Cut verbosity: remove unnecessary words, repetitions, elaborations.",
-    "Natural tone with warmth; avoid overly polished language.",
+    "Em dashes: max 1/paragraph, strong emphasis only.",
+    "Vary sentence structure; mix short/long, active voice.",
+    "Cut verbosity: remove unnecessary words, repetitions.",
+    "Natural tone with warmth; avoid overly polished.",
     "Analogies/metaphors sparingly; remove clichés.",
-    "Subtle variety: occasional contractions, fragments for texture.",
-    "Preserve technical terms; convert British to North American vocabulary.",
-    "Maintain original tone/register unless prompt requests change.",
+    "Subtle variety: occasional contractions, fragments.",
+    "Preserve technical terms; convert British→NA vocab.",
+    "Maintain original tone/register unless prompt changes it.",
     "No added explanatory content.",
-    "Return only edited text, no preamble or meta-commentary.",
-    "Preserve formatting (capitalization, bullets) unless prompt addresses it."
+    "Return only edited text, no preamble/meta-commentary.",
+    "Preserve formatting (caps, bullets) unless prompt addresses it."
   ]
 }
 

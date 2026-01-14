@@ -3,6 +3,17 @@ import guidelinesData from './guidelines.json';
 
 let currentSelectedText: string = '';
 let currentClaudeResponse: string = '';
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+interface DebugLogEntry {
+  ts: string;
+  level: LogLevel;
+  message: string;
+}
+
+const debugLogBuffer: DebugLogEntry[] = [];
+const DEBUG_LOG_MAX_ENTRIES = 500;
+
 // Store formatting properties as plain values (not Office.js objects)
 interface StoredFormatting {
   name?: string;
@@ -17,23 +28,123 @@ let storedFormatting: StoredFormatting | null = null;
 
 const API_KEY_STORAGE_KEY = 'wordtrack_claude_api_key';
 
+function appendDebugLog(level: LogLevel, message: string): void {
+  const entry: DebugLogEntry = {
+    ts: new Date().toISOString(),
+    level,
+    message
+  };
+  debugLogBuffer.push(entry);
+  if (debugLogBuffer.length > DEBUG_LOG_MAX_ENTRIES) {
+    debugLogBuffer.splice(0, debugLogBuffer.length - DEBUG_LOG_MAX_ENTRIES);
+  }
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (value instanceof Error) {
+      return `${value.name}: ${value.message}`;
+    }
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function installConsoleLogCapture(): void {
+  const original = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console)
+  };
+
+  console.log = (...args: unknown[]) => {
+    appendDebugLog('info', args.map(safeStringify).join(' '));
+    original.log(...args);
+  };
+  console.info = (...args: unknown[]) => {
+    appendDebugLog('info', args.map(safeStringify).join(' '));
+    original.info(...args);
+  };
+  console.warn = (...args: unknown[]) => {
+    appendDebugLog('warn', args.map(safeStringify).join(' '));
+    original.warn(...args);
+  };
+  console.error = (...args: unknown[]) => {
+    appendDebugLog('error', args.map(safeStringify).join(' '));
+    original.error(...args);
+  };
+
+  window.addEventListener('error', (event) => {
+    appendDebugLog('error', `Window error: ${event.message} (${event.filename}:${event.lineno}:${event.colno})`);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    appendDebugLog('error', `Unhandled promise rejection: ${safeStringify(event.reason)}`);
+  });
+}
+
+function buildDebugLogText(): string {
+  const lines: string[] = [];
+  lines.push('WordTrack Debug Log');
+  lines.push(`Generated: ${new Date().toISOString()}`);
+  lines.push('');
+  lines.push('Environment');
+  lines.push(`User agent: ${navigator.userAgent}`);
+  lines.push(`Office available: ${typeof Office !== 'undefined'}`);
+  lines.push(`Word available: ${typeof Word !== 'undefined'}`);
+  try {
+    if (typeof Office !== 'undefined' && Office.context) {
+      lines.push(`Host: ${String(Office.context.host)}`);
+      lines.push(`Platform: ${String(Office.context.platform)}`);
+    }
+  } catch (e) {
+    lines.push(`Office context read failed: ${safeStringify(e)}`);
+  }
+  lines.push('');
+  lines.push(`Recent logs (last ${debugLogBuffer.length} entries; max ${DEBUG_LOG_MAX_ENTRIES})`);
+  for (const entry of debugLogBuffer) {
+    lines.push(`[${entry.ts}] ${entry.level.toUpperCase()}: ${entry.message}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+function downloadDebugLog(): void {
+  const text = buildDebugLogText();
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wordtrack-debug-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showSuccess('Debug log downloaded.');
+}
+
 function initializeTaskPane(): void {
+  installConsoleLogCapture();
   console.log('Initializing task pane...');
   console.log('Office available:', typeof Office !== 'undefined');
   console.log('Word available:', typeof Word !== 'undefined');
   
   loadApiKey();
   
-  // Enable Track Changes automatically when add-in loads
-  // Wait a bit to ensure Office.js is fully initialized
-  console.log('Scheduling Track Changes enable on startup...');
-  enableTrackChangesOnStartup();
-  
   const getSelectedTextButton = document.getElementById('get-selected-text-button');
   const capitalizeButton = document.getElementById('capitalize-button');
   const saveApiKeyButton = document.getElementById('save-api-key-button');
   const sendToClaudeButton = document.getElementById('send-to-claude-button');
   const insertClaudeResponseButton = document.getElementById('insert-claude-response-button');
+  const downloadDebugLogButton = document.getElementById('download-debug-log-button');
+  const helpButton = document.getElementById('help-button');
+  const helpModal = document.getElementById('help-modal');
+  const helpCloseButton = document.getElementById('help-close-button');
   
   if (getSelectedTextButton) {
     getSelectedTextButton.addEventListener('click', handleGetSelectedText);
@@ -41,6 +152,26 @@ function initializeTaskPane(): void {
   } else {
     console.error('Button with id "get-selected-text-button" not found');
     setTimeout(initializeTaskPane, 100);
+  }
+  
+  if (helpButton) {
+    helpButton.addEventListener('click', () => {
+      if (helpModal) {
+        helpModal.style.display = 'block';
+      }
+    });
+  }
+  
+  if (helpCloseButton && helpModal) {
+    helpCloseButton.addEventListener('click', () => {
+      helpModal.style.display = 'none';
+    });
+    // Close modal when clicking outside
+    helpModal.addEventListener('click', (e) => {
+      if (e.target === helpModal) {
+        helpModal.style.display = 'none';
+      }
+    });
   }
   
   if (capitalizeButton) {
@@ -51,10 +182,8 @@ function initializeTaskPane(): void {
   if (saveApiKeyButton) {
     saveApiKeyButton.addEventListener('click', handleSaveApiKey);
   }
-  
-  const testTrackChangesButton = document.getElementById('test-track-changes-button');
-  if (testTrackChangesButton) {
-    testTrackChangesButton.addEventListener('click', handleTestTrackChanges);
+  if (downloadDebugLogButton) {
+    downloadDebugLogButton.addEventListener('click', downloadDebugLog);
   }
   
   if (sendToClaudeButton) {
@@ -64,140 +193,6 @@ function initializeTaskPane(): void {
   if (insertClaudeResponseButton) {
     insertClaudeResponseButton.addEventListener('click', handleInsertClaudeResponse);
   }
-}
-
-/**
- * Test function to manually enable Track Changes (for debugging)
- */
-function handleTestTrackChanges(): void {
-  console.log('Test Track Changes button clicked');
-  updateApiKeyStatus('Testing Track Changes...', false);
-  
-  // Check if Word API is available
-  if (typeof Word === 'undefined') {
-    console.error('Test: Word API not available');
-    updateApiKeyStatus('Word API not available', true);
-    showError('Word API is not available. Make sure the add-in is loaded in Word.');
-    return;
-  }
-  
-  console.log('Test: Word API is available');
-  console.log('Test: Office.context available:', typeof Office !== 'undefined' && typeof Office.context !== 'undefined');
-  
-  // Check requirement set
-  if (typeof Office !== 'undefined' && Office.context && Office.context.requirements) {
-    const hasWordApi14 = Office.context.requirements.isSetSupported('WordApi', '1.4');
-    console.log('Test: WordApi 1.4 supported:', hasWordApi14);
-    if (!hasWordApi14) {
-      updateApiKeyStatus('WordApi 1.4 not supported', true);
-      showError('Your Word version does not support Track Changes API (needs WordApi 1.4+). Please enable Track Changes manually in the Review tab.');
-      return;
-    }
-  }
-  
-  Word.run(async (context) => {
-    console.log('Test: Word.run() started');
-    console.log('Test: context.document available:', typeof context.document !== 'undefined');
-    console.log('Test: trackRevisions in document:', 'trackRevisions' in context.document);
-    
-    try {
-      const enabled = await ensureTrackChangesEnabled(context);
-      console.log('Test: ensureTrackChangesEnabled returned:', enabled);
-      
-      if (enabled) {
-        // Verify it's actually enabled
-        context.document.load('trackRevisions');
-        await context.sync();
-        const actualState = context.document.trackRevisions;
-        console.log('Test: Actual trackRevisions state after enable:', actualState);
-        
-        if (actualState === true) {
-          console.log('Test: Track Changes enabled successfully');
-          updateApiKeyStatus('Track Changes enabled! Check Review tab.', false);
-          showSuccess('Track Changes has been enabled. Check the Review tab to verify.');
-        } else {
-          console.log('Test: Track Changes enable failed - state is still false');
-          updateApiKeyStatus('Track Changes: Enable failed (state still false)', true);
-          showError('Track Changes could not be enabled. The state is still false after attempting to enable.');
-        }
-      } else {
-        console.log('Test: Track Changes could not be enabled');
-        updateApiKeyStatus('Track Changes: Could not enable (check console)', true);
-        showError('Track Changes could not be enabled. Check browser console for details.');
-      }
-    } catch (innerError) {
-      console.error('Test: Error in ensureTrackChangesEnabled:', innerError);
-      if (innerError instanceof Error) {
-        console.error('Test: Inner error name:', innerError.name);
-        console.error('Test: Inner error message:', innerError.message);
-      }
-      updateApiKeyStatus('Track Changes: Error in enable function', true);
-      showError('Error in enable function: ' + (innerError instanceof Error ? innerError.message : String(innerError)));
-    }
-  }).catch((error) => {
-    console.error('Test: Error in Word.run():', error);
-    if (error instanceof Error) {
-      console.error('Test: Error name:', error.name);
-      console.error('Test: Error message:', error.message);
-      if ((error as any).code) {
-        console.error('Test: Error code:', (error as any).code);
-      }
-      if ((error as any).debugInfo) {
-        console.error('Test: Debug info:', (error as any).debugInfo);
-      }
-    }
-    updateApiKeyStatus('Track Changes: Error in Word.run()', true);
-    showError('Error: ' + (error instanceof Error ? error.message : String(error)));
-  });
-}
-
-/**
- * Enable Track Changes when the add-in starts up.
- * This runs automatically when the task pane loads.
- */
-function enableTrackChangesOnStartup(): void {
-  console.log('enableTrackChangesOnStartup() called');
-  
-  // Wait for Office.js and Word API to be fully ready
-  const checkAndEnable = () => {
-    console.log('Checking if Word API is available...');
-    console.log('Word API available:', typeof Word !== 'undefined');
-    console.log('Office API available:', typeof Office !== 'undefined');
-    
-    if (typeof Word === 'undefined') {
-      console.log('Word API not available yet, retrying in 500ms...');
-      setTimeout(checkAndEnable, 500);
-      return;
-    }
-    
-    console.log('Word API is available, attempting to enable Track Changes...');
-    
-    Word.run(async (context) => {
-      console.log('Word.run() started for Track Changes enable');
-      const enabled = await ensureTrackChangesEnabled(context);
-      if (enabled) {
-        console.log('Track Changes enabled automatically on add-in startup');
-        // Show status message
-        updateApiKeyStatus('Track Changes enabled automatically', false);
-      } else {
-        console.log('Track Changes could not be enabled automatically (API may not be available)');
-        updateApiKeyStatus('Track Changes: Enable manually in Review tab', false);
-      }
-    }).catch((error) => {
-      console.error('Error enabling Track Changes on startup:', error);
-      if (error instanceof Error) {
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        if ((error as any).code) {
-          console.error('Error code:', (error as any).code);
-        }
-      }
-      updateApiKeyStatus('Track Changes: Enable manually in Review tab', false);
-    });
-  };
-  
-  // Start checking after a short delay
-  setTimeout(checkAndEnable, 1000);
 }
 
 function loadApiKey(): void {
@@ -263,15 +258,13 @@ function getApiKey(): string | null {
   }
 }
 
+
 function handleGetSelectedText(): void {
   console.log('Get selected text button clicked');
   
   hideMessages();
   
   Word.run(async (context) => {
-    // Ensure Track Changes is enabled (in case it was turned off after accepting changes)
-    await ensureTrackChangesEnabled(context);
-    
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
@@ -530,105 +523,19 @@ function handleCapitalizeAndInsert(): void {
   const capitalizedText = capitalizeWords(currentSelectedText);
   
   Word.run(async (context) => {
-    // Enable Track Changes before inserting
-    const trackChangesEnabled = await ensureTrackChangesEnabled(context);
-    
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
     range.insertText(capitalizedText, Word.InsertLocation.replace);
     
     return context.sync().then(async () => {
-      // Verify Track Changes is still enabled after insertion
-      // (Word might have turned it off, so re-enable if needed)
-      if (trackChangesEnabled) {
-        await ensureTrackChangesEnabled(context);
-      }
-      
-      if (trackChangesEnabled) {
-        showSuccess('Text has been capitalized and inserted. Changes are tracked.');
-      } else {
-        showSuccess('Text has been capitalized and inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
-      }
+      showSuccess('Text has been capitalized and inserted.');
       console.log('Text replaced successfully');
     });
   }).catch((error) => {
     console.error('Error inserting text:', error);
     showError('Error inserting text: ' + error.message);
   });
-}
-
-/**
- * Ensures Track Changes is enabled in the document.
- * Returns true if Track Changes was enabled (or already was enabled), false if not possible.
- */
-async function ensureTrackChangesEnabled(context: Word.RequestContext): Promise<boolean> {
-  console.log('ensureTrackChangesEnabled() called');
-  try {
-    // Check Word API requirement set first (but don't fail if check isn't available)
-    if (typeof Office !== 'undefined' && Office.context && Office.context.requirements) {
-      try {
-        const hasWordApi14 = Office.context.requirements.isSetSupported('WordApi', '1.4');
-        console.log('WordApi 1.4 supported:', hasWordApi14);
-        if (!hasWordApi14) {
-          console.warn('WordApi 1.4 not supported - Track Changes API may be unavailable');
-          // Don't return false here - try anyway in case the check is wrong
-        }
-      } catch (reqError) {
-        console.warn('Could not check requirement set, proceeding anyway:', reqError);
-      }
-    }
-    
-    // Check if trackRevisions property exists (available in WordApi 1.4+)
-    if ('trackRevisions' in context.document) {
-      console.log('trackRevisions property exists in document');
-      // Check current state
-      context.document.load('trackRevisions');
-      await context.sync();
-      const currentState = context.document.trackRevisions;
-      console.log('Current trackRevisions state:', currentState);
-      
-      // If already enabled, return true
-      if (currentState === true) {
-        console.log('Track Changes already enabled');
-        return true;
-      }
-      
-      // Enable Track Changes (it was OFF, so we need to turn it ON)
-      console.log('Track Changes is OFF - enabling it...');
-      context.document.trackRevisions = true;
-      await context.sync();
-      
-      // Verify it was actually enabled
-      context.document.load('trackRevisions');
-      await context.sync();
-      const newState = context.document.trackRevisions;
-      console.log('Track Changes state after enabling:', newState);
-      
-      if (newState === true) {
-        console.log('Track Changes enabled successfully');
-        return true;
-      } else {
-        console.warn('Track Changes enable failed - state is still false');
-        return false;
-      }
-    } else {
-      // API not available (older Word version)
-      console.warn('Track Changes API not available in this Word version (trackRevisions property not found)');
-      return false;
-    }
-  } catch (error) {
-    // Handle errors (e.g., document protected)
-    console.error('Error enabling Track Changes:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      if ((error as any).code) {
-        console.error('Error code:', (error as any).code);
-      }
-    }
-    return false;
-  }
 }
 
 function capitalizeWords(text: string): string {
@@ -771,19 +678,33 @@ function handleSendToClaude(): void {
   }
   
   const promptSelect = document.getElementById('prompt-select') as HTMLSelectElement;
-  const customPrompt = promptSelect ? promptSelect.value.trim() : 'Make this 2x longer with verbosity.';
+  const promptKey = promptSelect ? promptSelect.value.trim() : 'clarity';
   
-  if (!customPrompt) {
-    showError('Please select a prompt.');
-    return;
-  }
+  // Map user-friendly prompt keys to token-efficient LLM prompts
+  const promptMap: Record<string, string> = {
+    'concise': 'Make concise',
+    'expand': 'Expand 2x',
+    'formal': 'Make formal',
+    'casual': 'Make casual',
+    'clarity': 'Improve clarity',
+    'simplify': 'Simplify jargon',
+    'professional': 'Make professional',
+    'persuasive': 'Make persuasive',
+    'structure': 'Improve structure',
+    'detail': 'Add detail'
+  };
+  
+  const customPrompt = promptMap[promptKey] || promptMap['clarity'];
+  
+  const contextSelect = document.getElementById('context-select') as HTMLSelectElement;
+  const context = contextSelect ? contextSelect.value : 'personal';
   
   console.log('Sending to Claude...');
   
   hideMessages();
   showLoading(true);
   
-  callClaudeAPI(currentSelectedText, customPrompt, apiKey)
+  callClaudeAPI(currentSelectedText, customPrompt, context, apiKey)
     .then((response) => {
       showLoading(false);
       currentClaudeResponse = response;
@@ -796,22 +717,29 @@ function handleSendToClaude(): void {
     });
 }
 
-async function callClaudeAPI(text: string, prompt: string, apiKey: string): Promise<string> {
-  // Condense guidelines into a compact system message
+async function callClaudeAPI(text: string, prompt: string, context: string, apiKey: string): Promise<string> {
+  // Condense guidelines into compact system message
   const guidelinesText = guidelinesData.guidelines.join(' ');
   
-  // Build messages array with system message for guidelines (more token-efficient)
-  // System messages are typically cheaper and don't need to be repeated
+  // Map context to minimal description
+  const contextMap: Record<string, string> = {
+    'personal': 'Personal: friends/colleagues',
+    'formal': 'Formal: strangers/vendors',
+    'documentation': 'Documentation: ethics/grants'
+  };
+  const contextDesc = contextMap[context] || contextMap['personal'];
+  
+  // Build messages array - system messages are token-efficient
   const messages: Array<{role: string, content: string}> = [];
   
-  // Add system message with condensed guidelines
+  // System message: compact format
   messages.push({
     role: 'system',
-    content: `Text editing guidelines: ${guidelinesText}. Apply these unless the user's instruction conflicts.`
+    content: `${guidelinesText} Context: ${contextDesc}. Apply unless user instruction conflicts.`
   });
   
-  // User message is just the instruction and text (much shorter)
-  const userPrompt = `${prompt}\n\nText:\n${text}\n\nReturn only the edited text.`;
+  // User message: minimal structure
+  const userPrompt = `${prompt}\n\n${text}`;
   
   messages.push({
     role: 'user',
@@ -902,9 +830,6 @@ function handleInsertClaudeResponse(): void {
   hideMessages();
   
   Word.run(async (context) => {
-    // Enable Track Changes before inserting
-    const trackChangesEnabled = await ensureTrackChangesEnabled(context);
-    
     const selection = context.document.getSelection();
     const range = selection.getRange();
     
@@ -940,18 +865,10 @@ function handleInsertClaudeResponse(): void {
     
     return context.sync().then(() => {
       if (storedFormatting) {
-        if (trackChangesEnabled) {
-          showSuccess('Claude\'s response has been inserted with formatting preserved. Changes are tracked.');
-        } else {
-          showSuccess('Claude\'s response has been inserted with formatting preserved. Make sure Track Changes is enabled in Word to see the changes tracked.');
-        }
+        showSuccess('Claude\'s response has been inserted with formatting preserved.');
         console.log('Claude response inserted successfully with formatting');
       } else {
-        if (trackChangesEnabled) {
-          showSuccess('Claude\'s response has been inserted. Changes are tracked.');
-        } else {
-          showSuccess('Claude\'s response has been inserted. Make sure Track Changes is enabled in Word to see the changes tracked.');
-        }
+        showSuccess('Claude\'s response has been inserted.');
         console.log('Claude response inserted successfully');
       }
     });

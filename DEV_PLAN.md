@@ -10,32 +10,43 @@ while maintaining full compatibility with Word's existing functionality.
 ## Current Status
 **Phase 3 Complete** - Core functionality working (extraction, API, insertion)
 **Phase 4A Complete** - User-friendly startup with temp document hiding
-**Total time invested: ~8-10 hours over 2 days**
+**Phase 5 Updates Complete** - Removed buggy Track Changes auto-enable, added context menu, improved prompts, added Help system
+**Total time invested: ~12-15 hours**
 
 ## Next Phases (Recommended Order)
 
-### Phase 5: Track Changes + Core Polish 
+### Phase 5: Track Changes + Core Polish (UPDATED)
 
-Core improvements:
-- Refine Track Changes reliability (handle edge cases)
+**Completed:**
+- Removed programmatic Track Changes enabling (was buggy/unreliable)
+- Added Context menu (Personal/Formal/Documentation) for tone guidance
+- Optimized prompts for token efficiency (12 useful options)
+- Added Help system with concise instructions
+- Added debug log download feature
+- Removed Test button (replaced with Help)
+
+**Remaining:**
+- Fix table selection bug (BUG-001) - General Exception when inserting into table selections
 - Test with real documents from target users:
   - Wife's student papers (varied lengths, formatting)
   - Employee's documents (business writing)
   - Your own use cases
-- Fix formatting preservation issues
-- Handle large insertions/deletions gracefully
-- Verify Track Changes behavior across document types
+- Handle edge cases (tables, complex formatting, large documents)
+- Verify Track Changes behavior when manually enabled by users
 
-**Decision point:** If Track Changes has fundamental limitations, address them 
-before building category system on top.
+**Decision point:** Track Changes is now user-controlled (manual enable). Focus on ensuring 
+WordTrack works well when Track Changes is enabled by users.
 
-**Deliverable:** Rock-solid Track Changes that works reliably for target users
+**Deliverable:** Stable editing experience with proper error handling for edge cases
 
 ### Phase 6: Context and Category System
-**Priority: HIGH - Build on proven foundation**
+**Priority: MEDIUM - Context menu already implemented**
 
-Features:
-- Context selector (Personal/Professional)
+**Completed:**
+- Context selector (Personal/Formal/Documentation) - DONE
+- Context integrated into system prompts for tone guidance
+
+**Potential Future Enhancements:**
 - Category selector (dynamically filtered by Context)
   - Personal: Email, Notes, Creative Writing
   - Professional: MRI/Neuroradiology, Personal Training, Business
@@ -45,12 +56,12 @@ Features:
   - Terminology preferences
 - Prompt dropdown filtered by context+category
 - localStorage persistence for user preferences
-- API calls include category-specific context
 
-**Design consideration:** After Phase 5 testing, you'll know what editing 
-patterns work best, so category prompts can be optimized accordingly.
+**Design consideration:** Current context system provides basic tone guidance. 
+Category system can be added if needed after real-world usage testing.
 
-**Deliverable:** Tailored editing experience for different document types
+**Deliverable:** Current context system is sufficient for MVP. Category system 
+can be added later if user feedback indicates need.
 
 ### Phase 7: Optional Polish 
 **Priority: LOW - Only if highly valuable**
@@ -70,8 +81,9 @@ matters vs. what's just nice-to-have.
 ## Decision Points
 
 **After Phase 5:**
-- ✅ Track Changes reliable? → Proceed 
-- ❌ Fundamental issues? → Pivot approach or stop
+- ✅ Track Changes approach: User-controlled (manual enable) - DECIDED
+- ✅ Context menu implemented - DONE
+- ⚠️ Table selection bug needs fixing before production use
 
 **After Phase 6:**
 - Are context/categories genuinely useful? (Test with wife/employee)
@@ -84,12 +96,18 @@ matters vs. what's just nice-to-have.
 - Is Phase 6 worth 8-12 more hours?
 
 ## Revised Time Estimates
-- **Phase 5:** 3-5 hours (Track Changes polish)
-- **Phase 6:** 6-8 hours (Category system)
+- **Phase 5:** 3-5 hours (Track Changes polish) - PARTIALLY COMPLETE
+  - Completed: Context menu, prompt optimization, Help system (~2 hours)
+  - Remaining: Bug fixes, edge case handling (~2-3 hours)
+- **Phase 6:** 6-8 hours (Category system) - DEFERRED (basic context done)
 - **Phase 7:** 8-12 hours (Optional polish)
-- **Total remaining:** 17-25 hours
+- **Total remaining:** 10-20 hours (reduced due to Phase 5/6 progress)
 
-**Total project time if completed:** 25-35 hours
+**Total project time if completed:** 22-30 hours
+
+## Bug Tracking
+
+See **BUGS.md** for identified bugs and issues.
 
 ## Principles
 - ✅ Validate foundation before building structure 

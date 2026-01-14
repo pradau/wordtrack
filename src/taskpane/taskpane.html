@@ -27,18 +27,32 @@
                         <label for="api-key-input" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">Claude API Key:</label>
                         <input type="password" id="api-key-input" placeholder="Enter your Anthropic API key (sk-ant-...)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;">
                         <button id="save-api-key-button" style="margin-top: 8px; padding: 6px 12px; background-color: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Save API Key</button>
-                        <button id="test-track-changes-button" style="margin-top: 8px; margin-left: 8px; padding: 6px 12px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Test Track Changes</button>
+                        <button id="download-debug-log-button" style="margin-top: 8px; margin-left: 8px; padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Download Debug Log</button>
                         <span id="api-key-status" style="margin-left: 10px; font-size: 12px; color: #28a745;"></span>
                     </div>
                     
                     <div id="prompt-section" style="margin-bottom: 15px;">
                         <label for="prompt-select" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">Edit Prompt:</label>
                         <select id="prompt-select" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;">
-                            <option value="Make this 2x longer with verbosity.">Make this 2x longer with verbosity.</option>
-                            <option value="Make this more formal.">Make this more formal.</option>
-                            <option value="Simplify technical jargon.">Simplify technical jargon.</option>
-                            <option value="Improve clarity and readability.">Improve clarity and readability.</option>
-                            <option value="Make this more concise.">Make this more concise.</option>
+                            <option value="concise">Make more concise</option>
+                            <option value="expand">Expand and elaborate</option>
+                            <option value="formal">Make more formal</option>
+                            <option value="casual">Make more casual/friendly</option>
+                            <option value="clarity">Improve clarity</option>
+                            <option value="simplify">Simplify technical jargon</option>
+                            <option value="professional">Make more professional</option>
+                            <option value="persuasive">Make more persuasive</option>
+                            <option value="structure">Improve structure and flow</option>
+                            <option value="detail">Add more detail</option>
+                        </select>
+                    </div>
+                    
+                    <div id="context-section" style="margin-bottom: 15px;">
+                        <label for="context-select" style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">Context:</label>
+                        <select id="context-select" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+                            <option value="personal">Personal (friends and colleagues)</option>
+                            <option value="formal">Formal (strangers, vendors)</option>
+                            <option value="documentation">Documentation (ethics, grants)</option>
                         </select>
                     </div>
                     
@@ -68,7 +82,56 @@
                     </div>
                     <div id="error-message" style="display: none;"></div>
                     <div id="success-message" style="display: none;"></div>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                        <button id="help-button" style="padding: 8px 16px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Help</button>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="help-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 8px; max-width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 20px; font-weight: 600;">WordTrack Help</h2>
+                <button id="help-close-button" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 0; width: 30px; height: 30px;">&times;</button>
+            </div>
+            <div id="help-content" style="font-size: 14px; line-height: 1.6; color: #333;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 10px;">Quick Start</h3>
+                <ol style="margin: 0 0 20px 0; padding-left: 20px;">
+                    <li style="margin-bottom: 8px;">Select text in your Word document</li>
+                    <li style="margin-bottom: 8px;">Click "Get Selected Text" to extract it</li>
+                    <li style="margin-bottom: 8px;">Choose an Edit Prompt and Context</li>
+                    <li style="margin-bottom: 8px;">Click "Send to Claude" to get AI edits</li>
+                    <li style="margin-bottom: 8px;">Review Claude's response, then click "Insert Claude's Response"</li>
+                </ol>
+                
+                <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">Track Changes</h3>
+                <p style="margin: 0 0 15px 0;">To track edits made by WordTrack:</p>
+                <ol style="margin: 0 0 20px 0; padding-left: 20px;">
+                    <li style="margin-bottom: 8px;">Before using WordTrack, go to Review tab in Word</li>
+                    <li style="margin-bottom: 8px;">Click "Track Changes" to enable it</li>
+                    <li style="margin-bottom: 8px;">All WordTrack edits will appear as tracked changes</li>
+                    <li style="margin-bottom: 8px;">Use Review tab to accept/reject changes</li>
+                </ol>
+                
+                <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">Spelling & Grammar</h3>
+                <p style="margin: 0 0 15px 0;">WordTrack uses Word's built-in proofing tools (not AI):</p>
+                <ol style="margin: 0 0 20px 0; padding-left: 20px;">
+                    <li style="margin-bottom: 8px;">Go to Review tab in Word</li>
+                    <li style="margin-bottom: 8px;">Click "Editor" button</li>
+                    <li style="margin-bottom: 8px;">Word will check spelling and grammar using built-in tools</li>
+                    <li style="margin-bottom: 8px;">Review and apply suggestions as needed</li>
+                </ol>
+                
+                <h3 style="font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 10px;">Tips</h3>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li style="margin-bottom: 8px;">Formatting is preserved when inserting Claude's response</li>
+                    <li style="margin-bottom: 8px;">Use "Download Debug Log" if you encounter issues</li>
+                    <li style="margin-bottom: 8px;">Context options (Personal/Formal/Documentation) guide AI tone</li>
+                    <li style="margin-bottom: 8px;">Edit Prompts are token-efficient - choose the closest match</li>
+                </ul>
             </div>
         </div>
     </div>
